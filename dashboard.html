@@ -13,14 +13,21 @@
           <div class="header-content">
             <h1 class="dashboard-title">Conversation Dashboard</h1>
             <div class="header-actions">
+              <input id="search-input" class="input" type="text" placeholder="Search by ID, name, email, text" />
+              <select id="sort-select" class="select">
+                <option value="created_desc">Newest</option>
+                <option value="created_asc">Oldest</option>
+                <option value="messages_desc">Most messages</option>
+                <option value="messages_asc">Fewest messages</option>
+              </select>
               <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
               <a href="/" class="btn btn-primary">New Chat</a>
             </div>
           </div>
         </header>
 
-        <main class="dashboard-main">
-          <div class="conversations-section">
+        <main class="dashboard-main two-pane">
+          <div class="conversations-section" id="list-pane">
             <div class="section-header">
               <h2>All Conversations</h2>
               <div class="stats">
@@ -46,20 +53,30 @@
             </div>
           </div>
 
-          <div id="conversation-detail" class="conversation-detail" style="display: none;">
+          <div id="conversation-detail" class="conversation-detail" aria-live="polite">
             <div class="detail-header">
-              <button id="back-btn" class="btn btn-secondary">← Back to List</button>
+              <button id="back-btn" class="btn btn-secondary">← Back</button>
               <h3 id="conversation-title">Conversation Details</h3>
-              <button id="delete-conversation-btn" class="btn btn-danger">Delete</button>
+              <div class="detail-actions">
+                <button id="analyze-lead-btn" class="btn btn-primary">Analyze Lead</button>
+                <button id="delete-conversation-btn" class="btn btn-danger">Delete</button>
+              </div>
             </div>
             
             <div id="conversation-messages" class="conversation-messages">
               <!-- Messages will be populated here -->
             </div>
+
+            <div id="lead-analysis" class="lead-analysis" style="display: none;">
+              <h4>Lead Analysis</h4>
+              <div id="lead-analysis-content"></div>
+            </div>
           </div>
         </main>
       </div>
     </div>
+
+    <div id="toast-container" class="toast-container"></div>
 
     <script src="./dashboard.js"></script>
   </body>

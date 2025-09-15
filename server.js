@@ -183,13 +183,33 @@ app.post('/api/chat', async (req, res) => {
 app.get('/api/conversation/:sessionId', async (req, res) => {
   try {
     const { sessionId } = req.params;
-    const conversation = await getConversation(sessionId);
-    
-    if (!conversation || conversation.length === 0) {
+
+    const { data, error } = await supabase
+      .from('conversations')
+      .select('conversation_id, messages, lead_analysis, lead_quality, customer_email, customer_name, customer_phone, created_at')
+      .eq('conversation_id', sessionId)
+      .single();
+
+    if (error && error.code !== 'PGRST116') {
+      throw error;
+    }
+
+    if (!data || !data.messages || data.messages.length === 0) {
       return res.status(404).json({ error: 'Conversation not found' });
     }
-    
-    res.json({ conversation });
+
+    res.json({
+      conversation: data.messages,
+      analysis: data.lead_analysis || null,
+      meta: {
+        conversationId: data.conversation_id,
+        leadQuality: data.lead_quality || null,
+        customerEmail: data.customer_email || null,
+        customerName: data.customer_name || null,
+        customerPhone: data.customer_phone || null,
+        createdAt: data.created_at
+      }
+    });
   } catch (error) {
     console.error('Error fetching conversation:', error);
     res.status(500).json({ error: 'Failed to fetch conversation' });
@@ -213,7 +233,7 @@ app.get('/api/conversations', async (req, res) => {
   try {
     const { data, error } = await supabase
       .from('conversations')
-      .select('id, conversation_id, created_at, messages')
+      .select('id, conversation_id, created_at, messages, lead_quality, customer_email, customer_name')
       .order('created_at', { ascending: false });
     
     if (error) {
@@ -229,7 +249,10 @@ app.get('/api/conversations', async (req, res) => {
       last_message: conv.messages.length > 0 ? conv.messages[conv.messages.length - 1] : null,
       preview: conv.messages.length > 0 ? 
         (conv.messages[conv.messages.length - 1].content || '').substring(0, 100) + '...' : 
-        'No messages'
+        'No messages',
+      lead_quality: conv.lead_quality || null,
+      customer_email: conv.customer_email || null,
+      customer_name: conv.customer_name || null
     }));
     
     res.json({ conversations });
@@ -266,6 +289,75 @@ app.get('/api/health', async (req, res) => {
       supabase: 'Connection failed',
       error: error.message
     });
+  }
+});
+
+// Analyze conversation for lead extraction
+app.post('/api/conversation/:sessionId/analyze', async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+
+    // Fetch conversation messages
+    const messages = await getConversation(sessionId);
+    if (!messages || messages.length === 0) {
+      return res.status(404).json({ error: 'Conversation not found' });
+    }
+
+    // Build transcript text
+    const transcript = messages
+      .map(m => `${m.role === 'user' ? 'User' : 'Assistant'}: ${m.content}`)
+      .join('\n');
+
+    const system_prompt = `Extract the following customer details from the transcript:\n- Name\n- Email address\n- Phone number\n- Industry\n- Problems, needs, and goals summary\n- Availability\n- Whether they have booked a consultation (true/false)\n- Any special notes\n- Lead quality (categorize as 'good', 'ok', or 'spam')\nFormat the response using this JSON schema:\n{\n  "type": "object",\n  "properties": {\n    "customerName": { "type": "string" },\n    "customerEmail": { "type": "string" },\n    "customerPhone": { "type": "string" },\n    "customerIndustry": { "type": "string" },\n    "customerProblem": { "type": "string" },\n    "customerAvailability": { "type": "string" },\n    "customerConsultation": { "type": "boolean" },\n    "specialNotes": { "type": "string" },\n    "leadQuality": { "type": "string", "enum": ["good", "ok", "spam"] }\n  },\n  "required": ["customerName", "customerEmail", "customerProblem", "leadQuality"]\n}\nIf the user provided contact details, set lead quality to "good"; otherwise, "spam".`;
+
+    // Call OpenAI to extract JSON
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        { role: 'system', content: system_prompt },
+        { role: 'user', content: `Transcript:\n\n${transcript}\n\nReturn only minified JSON with no extra text.` }
+      ],
+      temperature: 0,
+      max_tokens: 500
+    });
+
+    const raw = completion.choices?.[0]?.message?.content || '{}';
+    let parsed;
+    try {
+      parsed = JSON.parse(raw);
+    } catch (e) {
+      // Try to salvage JSON if model wrapped in code fences
+      const jsonMatch = raw.match(/\{[\s\S]*\}/);
+      parsed = jsonMatch ? JSON.parse(jsonMatch[0]) : {};
+    }
+
+    // Persist analysis into conversations table
+    const { data, error } = await supabase
+      .from('conversations')
+      .update({
+        lead_analysis: parsed,
+        lead_quality: parsed.leadQuality || null,
+        customer_email: parsed.customerEmail || null,
+        customer_name: parsed.customerName || null,
+        customer_phone: parsed.customerPhone || null
+      })
+      .eq('conversation_id', sessionId)
+      .select('conversation_id, lead_analysis, lead_quality, customer_email, customer_name, customer_phone')
+      .single();
+
+    if (error) {
+      throw error;
+    }
+
+    res.json({ analysis: data.lead_analysis, meta: {
+      leadQuality: data.lead_quality,
+      customerEmail: data.customer_email,
+      customerName: data.customer_name,
+      customerPhone: data.customer_phone
+    }});
+  } catch (error) {
+    console.error('Error analyzing conversation:', error);
+    res.status(500).json({ error: 'Failed to analyze conversation' });
   }
 });
 

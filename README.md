@@ -31,11 +31,17 @@ Web_ai_agent/
 Your Supabase table should have the following structure:
 
 ```sql
-CREATE TABLE conversation (
+CREATE TABLE conversations (
   id BIGSERIAL PRIMARY KEY,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   conversation_id TEXT UNIQUE NOT NULL,
-  messages JSONB NOT NULL
+  messages JSONB NOT NULL,
+  -- Optional lead analysis fields
+  lead_analysis JSONB,
+  lead_quality TEXT CHECK (lead_quality IN ('good','ok','spam')),
+  customer_email TEXT,
+  customer_name TEXT,
+  customer_phone TEXT
 );
 ```
 
@@ -71,22 +77,27 @@ npm install
 
 1. Create a new table in your Supabase project:
    ```sql
-   CREATE TABLE conversation (
+   CREATE TABLE conversations (
      id BIGSERIAL PRIMARY KEY,
      created_at TIMESTAMPTZ DEFAULT NOW(),
      conversation_id TEXT UNIQUE NOT NULL,
-     messages JSONB NOT NULL
+     messages JSONB NOT NULL,
+     lead_analysis JSONB,
+     lead_quality TEXT CHECK (lead_quality IN ('good','ok','spam')),
+     customer_email TEXT,
+     customer_name TEXT,
+     customer_phone TEXT
    );
    ```
 
 2. Enable Row Level Security (RLS) if needed:
    ```sql
-   ALTER TABLE conversation ENABLE ROW LEVEL SECURITY;
+   ALTER TABLE conversations ENABLE ROW LEVEL SECURITY;
    ```
 
 3. Create a policy for service role access:
    ```sql
-   CREATE POLICY "Service role can manage conversations" ON conversation
+   CREATE POLICY "Service role can manage conversations" ON conversations
    FOR ALL USING (true);
    ```
 
@@ -110,6 +121,7 @@ Navigate to `http://localhost:3000` in your browser.
 - `POST /api/chat` - Send a message and get AI response
 - `GET /api/conversation/:sessionId` - Get conversation history
 - `DELETE /api/conversation/:sessionId` - Clear conversation history
+- `POST /api/conversation/:sessionId/analyze` - Extract customer info and lead quality
 - `GET /api/health` - Check server health and Supabase connection
 
 ## How It Works
@@ -163,6 +175,17 @@ If you modify the database schema, update the corresponding functions in `server
 - `getConversation()`
 - `saveConversation()`
 - `deleteConversation()`
+
+To add lead analysis support to an existing `conversations` table, run:
+
+```sql
+ALTER TABLE conversations
+  ADD COLUMN IF NOT EXISTS lead_analysis JSONB,
+  ADD COLUMN IF NOT EXISTS lead_quality TEXT CHECK (lead_quality IN ('good','ok','spam')),
+  ADD COLUMN IF NOT EXISTS customer_email TEXT,
+  ADD COLUMN IF NOT EXISTS customer_name TEXT,
+  ADD COLUMN IF NOT EXISTS customer_phone TEXT;
+```
 
 ## Troubleshooting
 

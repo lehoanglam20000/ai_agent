@@ -7,14 +7,20 @@
   const noConversationsEl = document.getElementById('no-conversations');
   const totalConversationsEl = document.getElementById('total-conversations');
   const refreshBtn = document.getElementById('refresh-btn');
+  const searchInput = document.getElementById('search-input');
+  const sortSelect = document.getElementById('sort-select');
   const conversationDetailEl = document.getElementById('conversation-detail');
   const backBtn = document.getElementById('back-btn');
   const conversationTitleEl = document.getElementById('conversation-title');
   const conversationMessagesEl = document.getElementById('conversation-messages');
   const deleteConversationBtn = document.getElementById('delete-conversation-btn');
+  const analyzeLeadBtn = document.getElementById('analyze-lead-btn');
+  const leadAnalysisEl = document.getElementById('lead-analysis');
+  const leadAnalysisContentEl = document.getElementById('lead-analysis-content');
 
   let currentConversationId = null;
   let conversations = [];
+  let filtered = [];
 
   // Initialize dashboard
   function init() {
@@ -25,8 +31,11 @@
   // Setup event listeners
   function setupEventListeners() {
     refreshBtn.addEventListener('click', loadConversations);
+    searchInput.addEventListener('input', handleFilterSort);
+    sortSelect.addEventListener('change', handleFilterSort);
     backBtn.addEventListener('click', showConversationsList);
     deleteConversationBtn.addEventListener('click', deleteCurrentConversation);
+    analyzeLeadBtn.addEventListener('click', analyzeCurrentConversation);
   }
 
   // Load all conversations from API
@@ -42,8 +51,7 @@
       
       const data = await response.json();
       conversations = data.conversations || [];
-      
-      renderConversations();
+      handleFilterSort();
       updateStats();
       
     } catch (error) {
@@ -56,12 +64,12 @@
 
   // Render conversations list
   function renderConversations() {
-    if (conversations.length === 0) {
+    if ((filtered.length || 0) === 0) {
       showNoConversations();
       return;
     }
 
-    conversationsListEl.innerHTML = conversations.map(conv => `
+    conversationsListEl.innerHTML = filtered.map(conv => `
       <div class="conversation-item" data-conversation-id="${conv.conversation_id}">
         <div class="conversation-header">
           <div class="conversation-id">${conv.conversation_id}</div>
@@ -72,6 +80,10 @@
           <span class="message-count">${conv.message_count} messages</span>
           <span>Last: ${conv.last_message ? formatTime(conv.last_message.timestamp || conv.created_at) : 'N/A'}</span>
         </div>
+        <div class="conversation-actions">
+          ${renderLeadBadge(conv)}
+          <button class="btn btn-secondary analyze-inline" data-id="${conv.conversation_id}">Analyze</button>
+        </div>
       </div>
     `).join('');
 
@@ -79,9 +91,55 @@
     conversationsListEl.querySelectorAll('.conversation-item').forEach(item => {
       item.addEventListener('click', () => {
         const conversationId = item.dataset.conversationId;
+        selectListItem(item);
         showConversationDetail(conversationId);
       });
     });
+
+    // Inline analyze buttons
+    conversationsListEl.querySelectorAll('.analyze-inline').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        e.stopPropagation();
+        const id = btn.getAttribute('data-id');
+        await analyzeById(id, btn);
+      });
+    });
+  }
+
+  function renderLeadBadge(conv) {
+    if (!conv.lead_quality) return '';
+    const quality = conv.lead_quality;
+    const cls = quality === 'good' ? 'badge-good' : quality === 'ok' ? 'badge-ok' : 'badge-spam';
+    const label = quality.charAt(0).toUpperCase() + quality.slice(1);
+    const name = conv.customer_name ? ` • ${escapeHtml(conv.customer_name)}` : '';
+    return `<span class="badge ${cls}">${label}${name}</span>`;
+  }
+
+  function handleFilterSort() {
+    const q = (searchInput.value || '').toLowerCase();
+    filtered = (conversations || []).filter(c => {
+      const hay = [
+        c.conversation_id,
+        c.preview,
+        c.customer_email,
+        c.customer_name,
+        c.lead_quality
+      ].filter(Boolean).join(' ').toLowerCase();
+      return hay.includes(q);
+    });
+
+    const mode = sortSelect.value;
+    filtered.sort((a, b) => {
+      switch (mode) {
+        case 'created_asc': return new Date(a.created_at) - new Date(b.created_at);
+        case 'messages_desc': return b.message_count - a.message_count;
+        case 'messages_asc': return a.message_count - b.message_count;
+        case 'created_desc':
+        default: return new Date(b.created_at) - new Date(a.created_at);
+      }
+    });
+
+    renderConversations();
   }
 
   // Show conversation detail view
@@ -97,19 +155,85 @@
       
       const data = await response.json();
       const conversation = conversations.find(c => c.conversation_id === conversationId);
-      
+
       // Update UI
       conversationTitleEl.textContent = `Conversation ${conversationId}`;
       renderConversationMessages(data.conversation);
+      renderLeadAnalysis(data.analysis);
       
-      // Show detail view
-      document.querySelector('.conversations-section').style.display = 'none';
+      // Two-pane: keep list visible, always show detail pane
       conversationDetailEl.style.display = 'block';
+
+      // Hide previous analysis
+      leadAnalysisEl.style.display = 'none';
       
     } catch (error) {
       console.error('Error loading conversation detail:', error);
       showError('Failed to load conversation details.');
     }
+  }
+
+  // Analyze current conversation
+  async function analyzeCurrentConversation() {
+    if (!currentConversationId) return;
+
+    try {
+      analyzeLeadBtn.disabled = true;
+      analyzeLeadBtn.textContent = 'Analyzing...';
+
+      const response = await fetch(`${API_BASE_URL}/api/conversation/${currentConversationId}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+      }
+
+      const data = await response.json();
+      renderLeadAnalysis(data.analysis);
+      showSuccess('Lead analysis completed.');
+
+    } catch (error) {
+      console.error('Error analyzing conversation:', error);
+      showError('Failed to analyze conversation.');
+    } finally {
+      analyzeLeadBtn.disabled = false;
+      analyzeLeadBtn.textContent = 'Analyze Lead';
+    }
+  }
+
+  function renderLeadAnalysis(analysis) {
+    if (!analysis) {
+      leadAnalysisContentEl.innerHTML = '<p class="text-muted">No analysis available.</p>';
+      leadAnalysisEl.style.display = 'block';
+      return;
+    }
+
+    const fields = [
+      ['Name', analysis.customerName],
+      ['Email', analysis.customerEmail],
+      ['Phone', analysis.customerPhone],
+      ['Industry', analysis.customerIndustry],
+      ['Problems/Needs/Goals', analysis.customerProblem],
+      ['Availability', analysis.customerAvailability],
+      ['Booked Consultation', String(analysis.customerConsultation)],
+      ['Special Notes', analysis.specialNotes],
+      ['Lead Quality', analysis.leadQuality]
+    ];
+
+    leadAnalysisContentEl.innerHTML = `
+      <div class="analysis-grid">
+        ${fields.map(([label, value]) => `
+          <div class="analysis-row">
+            <div class="analysis-label">${escapeHtml(label)}</div>
+            <div class="analysis-value">${escapeHtml(value ?? '')}</div>
+          </div>
+        `).join('')}
+      </div>
+    `;
+
+    leadAnalysisEl.style.display = 'block';
   }
 
   // Render conversation messages
@@ -134,9 +258,17 @@
 
   // Show conversations list view
   function showConversationsList() {
-    conversationDetailEl.style.display = 'none';
-    document.querySelector('.conversations-section').style.display = 'block';
     currentConversationId = null;
+    clearSelection();
+  }
+
+  function selectListItem(el) {
+    clearSelection();
+    el.classList.add('selected');
+  }
+
+  function clearSelection() {
+    document.querySelectorAll('.conversation-item.selected').forEach(el => el.classList.remove('selected'));
   }
 
   // Delete current conversation
@@ -192,14 +324,43 @@
 
   // Show error message
   function showError(message) {
-    // Simple error display - you could enhance this with a toast notification
-    alert(`Error: ${message}`);
+    showToast(message, 'error');
   }
 
   // Show success message
   function showSuccess(message) {
-    // Simple success display - you could enhance this with a toast notification
-    console.log(`Success: ${message}`);
+    showToast(message, 'success');
+  }
+
+  function showToast(message, type) {
+    const container = document.getElementById('toast-container');
+    if (!container) return;
+    const el = document.createElement('div');
+    el.className = 'toast';
+    el.textContent = message;
+    container.appendChild(el);
+    setTimeout(() => {
+      el.remove();
+    }, 3000);
+  }
+
+  async function analyzeById(conversationId, buttonEl) {
+    try {
+      if (buttonEl) { buttonEl.disabled = true; buttonEl.textContent = 'Analyzing...'; }
+      const response = await fetch(`${API_BASE_URL}/api/conversation/${conversationId}/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+      });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+      await response.json();
+      showSuccess('Lead analysis completed.');
+      // Reload to fetch updated badges
+      await loadConversations();
+    } catch (e) {
+      showError('Failed to analyze conversation.');
+    } finally {
+      if (buttonEl) { buttonEl.disabled = false; buttonEl.textContent = 'Analyze'; }
+    }
   }
 
   // Utility functions
