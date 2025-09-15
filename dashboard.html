@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Conversation Dashboard</title>
+    <link rel="stylesheet" href="./dashboard.css" />
+  </head>
+  <body>
+    <div class="app">
+      <div class="dashboard-container">
+        <header class="dashboard-header">
+          <div class="header-content">
+            <h1 class="dashboard-title">Conversation Dashboard</h1>
+            <div class="header-actions">
+              <button id="refresh-btn" class="btn btn-secondary">Refresh</button>
+              <a href="/" class="btn btn-primary">New Chat</a>
+            </div>
+          </div>
+        </header>
+
+        <main class="dashboard-main">
+          <div class="conversations-section">
+            <div class="section-header">
+              <h2>All Conversations</h2>
+              <div class="stats">
+                <span id="total-conversations">0 conversations</span>
+              </div>
+            </div>
+
+            <div id="loading" class="loading">
+              <div class="spinner"></div>
+              <p>Loading conversations...</p>
+            </div>
+
+            <div id="conversations-list" class="conversations-list">
+              <!-- Conversations will be populated here -->
+            </div>
+
+            <div id="no-conversations" class="no-conversations" style="display: none;">
+              <div class="empty-state">
+                <h3>No conversations yet</h3>
+                <p>Start a new chat to see conversations here.</p>
+                <a href="/" class="btn btn-primary">Start New Chat</a>
+              </div>
+            </div>
+          </div>
+
+          <div id="conversation-detail" class="conversation-detail" style="display: none;">
+            <div class="detail-header">
+              <button id="back-btn" class="btn btn-secondary">← Back to List</button>
+              <h3 id="conversation-title">Conversation Details</h3>
+              <button id="delete-conversation-btn" class="btn btn-danger">Delete</button>
+            </div>
+            
+            <div id="conversation-messages" class="conversation-messages">
+              <!-- Messages will be populated here -->
+            </div>
+          </div>
+        </main>
+      </div>
+    </div>
+
+    <script src="./dashboard.js"></script>
+  </body>
+</html>

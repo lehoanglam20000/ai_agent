@@ -3,14 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Simple Web Chatbot</title>
+    <title>Web Chatbot with OpenAI</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <div class="app">
       <div class="chat-card">
         <header class="chat-header">
-          <div class="chat-title">Web Chatbot</div>
+          <div class="chat-title">AI Chatbot</div>
+          <div class="chat-subtitle">Powered by OpenAI</div>
+          <div class="chat-actions">
+            <a href="/dashboard" class="btn btn-secondary">View All Chats</a>
+          </div>
         </header>
 
         <main id="messages" class="messages" aria-live="polite" aria-label="Chat messages"></main>
@@ -32,6 +36,4 @@
 
     <script src="./script.js"></script>
   </body>
-  </html>
-
-
+</html>
