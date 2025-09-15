@@ -7,7 +7,7 @@
   let sessionId = null;
   let isProcessing = false;
 
-  const API_BASE_URL = window.location.origin;
+  const API_BASE_URL = (document.querySelector('meta[name="api-base"]')?.content || window.__API_BASE_URL__ || '').trim();
 
   function appendMessage(text, role, isError = false) {
     const bubble = document.createElement('div');
@@ -119,11 +119,7 @@
       }
     } catch (error) {
       console.warn('Server health check failed:', error);
-      appendMessage(
-        'Warning: Unable to connect to the server. Please make sure the backend is running on port 3000.',
-        'bot',
-        true
-      );
+      appendMessage('Warning: Unable to connect to the server API. Please ensure the backend is reachable at the configured URL.', 'bot', true);
     }
   }
 
