@@ -12,7 +12,7 @@ const supabase = createClient(
 // Get conversation history endpoint
 app.get('/', async (req, res) => {
   try {
-    const { sessionId } = req.query;
+    const sessionId = req.query.sessionId;
 
     const { data, error } = await supabase
       .from('conversations')
@@ -49,7 +49,7 @@ app.get('/', async (req, res) => {
 // Clear conversation endpoint
 app.delete('/', async (req, res) => {
   try {
-    const { sessionId } = req.query;
+    const sessionId = req.query.sessionId;
     const { error } = await supabase
       .from('conversations')
       .delete()

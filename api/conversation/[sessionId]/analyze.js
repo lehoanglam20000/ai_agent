@@ -42,7 +42,7 @@ async function getConversation(conversationId) {
 // Analyze conversation for lead extraction
 app.post('/', async (req, res) => {
   try {
-    const { sessionId } = req.query;
+    const sessionId = req.query.sessionId;
 
     // Fetch conversation messages
     const messages = await getConversation(sessionId);
