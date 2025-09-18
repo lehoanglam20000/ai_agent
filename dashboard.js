@@ -1,5 +1,5 @@
 (function () {
-  const API_BASE_URL = (document.querySelector('meta[name="api-base"]')?.content || window.__API_BASE_URL__ || '').trim();
+  const API_BASE_URL = (document.querySelector('meta[name="api-base"]')?.content || window.__API_BASE_URL__ || window.location.origin).trim();
   
   // DOM elements
   const loadingEl = document.getElementById('loading');

@@ -7,7 +7,7 @@
   let sessionId = null;
   let isProcessing = false;
 
-  const API_BASE_URL = (document.querySelector('meta[name="api-base"]')?.content || window.__API_BASE_URL__ || '').trim();
+  const API_BASE_URL = (document.querySelector('meta[name="api-base"]')?.content || window.__API_BASE_URL__ || window.location.origin).trim();
 
   function appendMessage(text, role, isError = false) {
     const bubble = document.createElement('div');
