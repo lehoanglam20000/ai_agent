@@ -103,7 +103,7 @@
 
   // Initialize the chat
   function initializeChat() {
-    appendMessage('Hello! I\'m an AI assistant powered by OpenAI. How can I help you today?', 'bot');
+    appendMessage('Hello! I\'m the GBS Virtual Assistant, your friendly support assistant for Global Banking School. I can help you with booking 1-to-1 academic or wellbeing support, and answer questions about classes, rooms, and timetables. How can I assist you today?', 'bot');
     inputEl.focus();
   }
 
