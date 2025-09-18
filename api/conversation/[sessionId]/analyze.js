@@ -1,12 +1,5 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -40,7 +33,21 @@ async function getConversation(conversationId) {
 }
 
 // Analyze conversation for lead extraction
-app.post('/', async (req, res) => {
+module.exports = async (req, res) => {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
     const sessionId = req.query.sessionId;
 
@@ -106,6 +113,4 @@ app.post('/', async (req, res) => {
     console.error('Error analyzing conversation:', error);
     res.status(500).json({ error: 'Failed to analyze conversation' });
   }
-});
-
-module.exports = app;
+};

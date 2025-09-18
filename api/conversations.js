@@ -1,7 +1,4 @@
-const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
-
-const app = express();
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -10,7 +7,21 @@ const supabase = createClient(
 );
 
 // Get all conversations endpoint
-app.get('/', async (req, res) => {
+module.exports = async (req, res) => {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'GET') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
     const { data, error } = await supabase
       .from('conversations')
@@ -41,6 +52,4 @@ app.get('/', async (req, res) => {
     console.error('Error fetching conversations:', error);
     res.status(500).json({ error: 'Failed to fetch conversations' });
   }
-});
-
-module.exports = app;
+};

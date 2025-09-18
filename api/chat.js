@@ -1,12 +1,5 @@
-const express = require('express');
-const cors = require('cors');
-require('dotenv').config();
 const OpenAI = require('openai');
 const { createClient } = require('@supabase/supabase-js');
-
-const app = express();
-app.use(cors());
-app.use(express.json());
 
 // Initialize OpenAI client
 const openai = new OpenAI({
@@ -70,7 +63,21 @@ async function saveConversation(conversationId, messages) {
 }
 
 // Chat endpoint
-app.post('/', async (req, res) => {
+module.exports = async (req, res) => {
+  // Set CORS headers
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  
+  if (req.method === 'OPTIONS') {
+    res.status(200).end();
+    return;
+  }
+
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
   try {
     const { message, sessionId } = req.body;
     
@@ -152,6 +159,4 @@ app.post('/', async (req, res) => {
       details: error.message 
     });
   }
-});
-
-module.exports = app;
+};

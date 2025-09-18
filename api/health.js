@@ -1,7 +1,4 @@
-const express = require('express');
 const { createClient } = require('@supabase/supabase-js');
-
-const app = express();
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -10,7 +7,7 @@ const supabase = createClient(
 );
 
 // Health check endpoint
-app.get('/', async (req, res) => {
+module.exports = async (req, res) => {
   try {
     // Test Supabase connection
     const { data, error } = await supabase
@@ -37,6 +34,4 @@ app.get('/', async (req, res) => {
       error: error.message
     });
   }
-});
-
-module.exports = app;
+};
